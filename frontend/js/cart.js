@@ -1,228 +1,99 @@
 async function getLoggedInUser() {
-    if (typeof getCurrentUser !== "function") {
-        return null;
-    }
-
+    if (typeof getCurrentUser !== "function") throw new Error("Authentication module is not loaded.");
     return await getCurrentUser();
 }
 
-async function changeQuantity(
-    cartItemId,
-    quantity
-) {
-    try {
-        await updateCartQuantity(
-            cartItemId,
-            quantity
-        );
+async function loadCartDirect(userId) {
+    const result = await supabaseClient
+        .from("cart_items")
+        .select("id, quantity, food_id")
+        .eq("user_id", userId)
+        .order("id");
+    if (result.error) throw result.error;
 
-        await renderCart();
-    } catch (error) {
-        alert(error.message);
+    const rows = result.data || [];
+    if (!rows.length) return [];
+
+    const ids = [...new Set(rows.map(r => r.food_id))];
+    const foodsResult = await supabaseClient
+        .from("food_items")
+        .select("id, name, price, image_url")
+        .in("id", ids);
+    if (foodsResult.error) throw foodsResult.error;
+
+    const foodMap = new Map((foodsResult.data || []).map(f => [f.id, f]));
+    return rows.map(r => ({ ...r, food: foodMap.get(r.food_id) })).filter(r => r.food);
+}
+
+function getFoodVisual(food) {
+    if (food.image_url) {
+        return `<img src="${escapeHtml(food.image_url)}" alt="${escapeHtml(food.name)}" style="width:72px;height:72px;object-fit:cover;border-radius:12px;display:block;" onerror="this.style.display='none';this.nextElementSibling.style.display='block';"><span style="display:none;font-size:42px">🍽️</span>`;
     }
+    const n = String(food.name || "").toLowerCase();
+    if (n.includes("pizza")) return "🍕";
+    if (n.includes("burger")) return "🍔";
+    if (n.includes("pasta")) return "🍝";
+    if (n.includes("fries")) return "🍟";
+    if (n.includes("sandwich")) return "🥪";
+    if (n.includes("wrap")) return "🌯";
+    if (n.includes("coffee")) return "☕";
+    if (n.includes("brownie")) return "🍫";
+    return "🍽️";
+}
+
+async function changeQuantity(cartItemId, quantity) {
+    try {
+        if (quantity <= 0) await removeCartItem(cartItemId);
+        else await updateCartQuantity(cartItemId, quantity);
+        await renderCart();
+        await updateCartCount();
+    } catch (e) { alert(e.message); }
 }
 
 async function removeItem(cartItemId) {
     try {
         await removeCartItem(cartItemId);
-
         await renderCart();
-    } catch (error) {
-        alert(error.message);
-    }
+        await updateCartCount();
+    } catch (e) { alert(e.message); }
 }
 
 async function renderCart() {
-    const container =
-        document.getElementById("cartContainer");
-
-    if (!container) {
-        return;
-    }
-
-    const user = await getLoggedInUser();
-
-    if (!user) {
-        container.innerHTML = `
-            <div class="empty">
-                <h2>Please login first.</h2>
-                <br>
-                <a href="login.html" class="btn">
-                    Login
-                </a>
-            </div>
-        `;
-
-        return;
-    }
+    const container = document.getElementById("cartContainer");
+    if (!container) return;
+    container.innerHTML = `<div class="empty"><h2>Loading cart...</h2></div>`;
 
     try {
-        const items =
-            await getUserCartItems(user.id);
-
-        if (items.length === 0) {
-            container.innerHTML = `
-                <div class="empty">
-                    <h2>Your cart is empty 🛒</h2>
-                    <p class="muted">
-                        Add something delicious.
-                    </p>
-                    <br>
-                    <a href="menu.html" class="btn">
-                        Browse Menu
-                    </a>
-                </div>
-            `;
-
+        const user = await getLoggedInUser();
+        if (!user) {
+            container.innerHTML = `<div class="empty"><h2>Please login first.</h2><br><a href="login.html" class="btn">Login</a></div>`;
             return;
         }
 
-        const total = items.reduce(
-            (sum, item) => {
-                return sum +
-                    Number(item.food_items.price) *
-                    item.quantity;
-            },
-            0
-        );
+        const items = await loadCartDirect(user.id);
+        if (!items.length) {
+            container.innerHTML = `<div class="empty"><h2>Your cart is empty 🛒</h2><p class="muted">Add something delicious.</p><br><a href="menu.html" class="btn">Browse Menu</a></div>`;
+            return;
+        }
 
-        container.innerHTML = `
-            <div class="cart-layout">
-                <div class="panel">
-                    ${items.map(item => `
-                        <div class="cart-row">
-                            <div class="cart-thumb">
-                                ${getFoodEmoji(item.food_items.name)}
-                            </div>
-
-                            <div>
-                                <strong>
-                                    ${escapeHtml(item.food_items.name)}
-                                </strong>
-                                <p class="muted">
-                                    ${formatMoney(item.food_items.price)} each
-                                </p>
-                            </div>
-
-                            <div class="quantity-buttons">
-                                <button
-                                    class="quantity-button"
-                                    onclick="changeQuantity(${item.id}, ${item.quantity - 1})"
-                                >
-                                    −
-                                </button>
-
-                                <strong>${item.quantity}</strong>
-
-                                <button
-                                    class="quantity-button"
-                                    onclick="changeQuantity(${item.id}, ${item.quantity + 1})"
-                                >
-                                    +
-                                </button>
-                            </div>
-
-                            <button
-                                class="remove-button"
-                                onclick="removeItem(${item.id})"
-                            >
-                                Remove
-                            </button>
-                        </div>
-                    `).join("")}
+        const total = items.reduce((sum, i) => sum + Number(i.food.price) * Number(i.quantity), 0);
+        container.innerHTML = `<div class="cart-layout"><div class="panel">${items.map(i => `
+            <div class="cart-row">
+                <div class="cart-thumb">${getFoodVisual(i.food)}</div>
+                <div><strong>${escapeHtml(i.food.name)}</strong><p class="muted">${formatMoney(i.food.price)} each</p></div>
+                <div class="quantity-buttons">
+                    <button class="quantity-button" onclick="changeQuantity(${i.id}, ${Number(i.quantity)-1})">−</button>
+                    <strong>${i.quantity}</strong>
+                    <button class="quantity-button" onclick="changeQuantity(${i.id}, ${Number(i.quantity)+1})">+</button>
                 </div>
-
-                <aside class="panel">
-                    <h2>Order Summary</h2>
-                    <div class="summary-line">
-                        <span>Subtotal</span>
-                        <strong>${formatMoney(total)}</strong>
-                    </div>
-                    <div class="summary-line">
-                        <span>Delivery</span>
-                        <strong>Free</strong>
-                    </div>
-                    <div class="summary-line total-line">
-                        <span>Total</span>
-                        <strong>${formatMoney(total)}</strong>
-                    </div>
-                    <br>
-                    <a href="checkout.html" class="btn full-width">
-                        Proceed to Checkout
-                    </a>
-                </aside>
-            </div>
-        `;
-
-        updateCartCountFromDatabase(items);
-    } catch (error) {
-        container.innerHTML = `
-            <div class="empty">
-                ${escapeHtml(error.message)}
-            </div>
-        `;
+                <button class="remove-button" onclick="removeItem(${i.id})">Remove</button>
+            </div>`).join("")}</div>
+            <aside class="panel"><h2>Order Summary</h2><div class="summary-line"><span>Subtotal</span><strong>${formatMoney(total)}</strong></div><div class="summary-line"><span>Delivery</span><strong>Free</strong></div><div class="summary-line total-line"><span>Total</span><strong>${formatMoney(total)}</strong></div><br><a href="checkout.html" class="btn full-width">Proceed to Checkout</a></aside></div>`;
+        await updateCartCount();
+    } catch (e) {
+        console.error("Cart error:", e);
+        container.innerHTML = `<div class="empty"><h2>Unable to load cart</h2><p>${escapeHtml(e.message)}</p><br><button class="btn" onclick="renderCart()">Retry</button></div>`;
     }
 }
 
-function getFoodEmoji(name) {
-    const lower = String(name).toLowerCase();
-
-    let imageUrl = "";
-
-    if (lower.includes("pizza")) {
-        imageUrl = "https://images.unsplash.com/photo-1574071318508-1cdbab80d002?auto=format&fit=crop&w=500&q=80";
-    } else if (lower.includes("burger")) {
-        imageUrl = "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=500&q=80";
-    } else if (lower.includes("pasta")) {
-        imageUrl = "https://images.unsplash.com/photo-1473093295043-cdd812d0e601?auto=format&fit=crop&w=500&q=80";
-    } else if (lower.includes("fries")) {
-        imageUrl = "https://images.unsplash.com/photo-1573080496219-bb080dd4f877?auto=format&fit=crop&w=500&q=80";
-    } else if (lower.includes("sandwich")) {
-        imageUrl = "https://images.unsplash.com/photo-1528735602780-2552fd46c7af?auto=format&fit=crop&w=500&q=80";
-    } else if (lower.includes("wrap")) {
-        imageUrl = "https://images.unsplash.com/photo-1626700051175-6818013e1d4f?auto=format&fit=crop&w=500&q=80";
-    } else if (lower.includes("coffee") || lower.includes("shake")) {
-        imageUrl = "https://images.unsplash.com/photo-1461023058943-07fcbe16d735?auto=format&fit=crop&w=500&q=80";
-    } else if (lower.includes("soda")) {
-        imageUrl = "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=500&q=80";
-    } else if (lower.includes("bread")) {
-        imageUrl = "https://images.unsplash.com/photo-1573140247632-f8fd74997d5c?auto=format&fit=crop&w=500&q=80";
-    } else if (lower.includes("brownie") || lower.includes("ice cream") || lower.includes("gulab")) {
-        imageUrl = "https://images.unsplash.com/photo-1551024506-0bccd828d307?auto=format&fit=crop&w=500&q=80";
-    }
-
-    if (!imageUrl) {
-        return "🍽️";
-    }
-
-    return `
-        <img
-            src="${imageUrl}"
-            alt="${escapeHtml(name)}"
-            loading="lazy"
-            style="width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block;"
-            onerror="this.style.display='none';this.parentElement.textContent='🍽️';"
-        >
-    `;
-}
-
-function updateCartCountFromDatabase(items) {
-    const element =
-        document.getElementById("cartCount");
-
-    if (!element) {
-        return;
-    }
-
-    const count = items.reduce(
-        (sum, item) => sum + item.quantity,
-        0
-    );
-
-    element.textContent = count;
-}
-
-document.addEventListener(
-    "DOMContentLoaded",
-    renderCart
-);
+document.addEventListener("DOMContentLoaded", renderCart);

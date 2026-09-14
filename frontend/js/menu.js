@@ -265,34 +265,32 @@ function createFoodCard(food) {
 }
 
 async function addFoodToCart(foodId) {
-    const food =
-        foods.find(
-            item => item.id === foodId
-        );
-
-    if (!food) {
-        return;
-    }
+    const food = foods.find(item => item.id === foodId);
+    if (!food) return;
 
     try {
-        const user = await getCurrentUser();
+        if (typeof supabaseClient === "undefined" || typeof getCurrentUser !== "function" || typeof addToCart !== "function") {
+            throw new Error("Supabase is not loaded. Please refresh the page.");
+        }
 
+        const user = await getCurrentUser();
         if (!user) {
             alert("Please login first.");
             window.location.href = "login.html";
             return;
         }
 
-        await addToCart(
-            user.id,
-            foodId,
-            1
-        );
+        await addToCart(user.id, foodId, 1);
+
+        // Keep the navbar count synced with the Supabase cart.
+        if (typeof updateCartCount === "function") {
+            await updateCartCount();
+        }
 
         alert(food.name + " added to cart.");
-        await refreshCartCount();
     } catch (error) {
-        alert(error.message);
+        console.error("Add to cart error:", error);
+        alert(error.message || "Unable to add item to cart.");
     }
 }
 

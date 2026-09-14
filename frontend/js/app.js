@@ -1,67 +1,66 @@
-// Supabase is configured in js/supabase-config.js
-
 const CART_KEY = "foodie_cart";
 const USER_KEY = "foodie_user";
 
 function getCart() {
-    return JSON.parse(
-        localStorage.getItem(CART_KEY) || "[]"
-    );
+    return JSON.parse(localStorage.getItem(CART_KEY) || "[]");
 }
 
 function saveCart(cartItems) {
-    localStorage.setItem(
-        CART_KEY,
-        JSON.stringify(cartItems)
-    );
-
+    localStorage.setItem(CART_KEY, JSON.stringify(cartItems));
     updateCartCount();
 }
 
 function getUser() {
-    return JSON.parse(
-        localStorage.getItem(USER_KEY) || "null"
-    );
+    return JSON.parse(localStorage.getItem(USER_KEY) || "null");
 }
 
 function setUser(user) {
-    localStorage.setItem(
-        USER_KEY,
-        JSON.stringify(user)
-    );
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
 }
 
 function formatMoney(value) {
     return "₹" + Number(value).toFixed(2);
 }
 
-function updateCartCount() {
-    const element =
-        document.getElementById("cartCount");
+async function updateCartCount() {
+    const element = document.getElementById("cartCount");
+    if (!element) return;
 
-    if (!element) {
-        return;
+    try {
+        // Supabase is loaded after app.js in the current HTML files, so this
+        // function intentionally checks for it when DOMContentLoaded fires.
+        if (typeof supabaseClient !== "undefined") {
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if (user) {
+                const { data, error } = await supabaseClient
+                    .from("cart_items")
+                    .select("quantity")
+                    .eq("user_id", user.id);
+
+                if (!error) {
+                    const count = (data || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+                    element.textContent = count;
+                    return;
+                }
+            }
+        }
+    } catch (e) {
+        console.warn("Supabase cart count unavailable:", e);
     }
 
-    const count = getCart().reduce(
-        (sum, item) =>
-            sum + item.quantity,
-        0
-    );
-
+    // Fallback only for old/local data.
+    const count = getCart().reduce((sum, item) => sum + Number(item.quantity || 0), 0);
     element.textContent = count;
 }
 
 async function logout() {
     try {
-        if (typeof signOutUser === "function") {
-            await signOutUser();
-            return;
+        if (typeof supabaseClient !== "undefined") {
+            await supabaseClient.auth.signOut();
         }
-    } catch (error) {
-        console.error("Logout error:", error);
+    } catch (e) {
+        console.warn("Supabase logout error:", e);
     }
-
     localStorage.removeItem(USER_KEY);
     window.location.href = "index.html";
 }
@@ -76,139 +75,45 @@ function escapeHtml(value) {
 }
 
 async function renderNavbar() {
-    const navbar =
-        document.getElementById("navbar");
-
-    if (!navbar) {
-        return;
-    }
+    const navbar = document.getElementById("navbar");
+    if (!navbar) return;
 
     let user = getUser();
 
     try {
-        if (typeof getCurrentUser === "function") {
-            const supabaseUser =
-                await getCurrentUser();
-
-            if (supabaseUser) {
-                user = {
-                    id: supabaseUser.id,
-                    email: supabaseUser.email,
-                    name:
-                        supabaseUser.user_metadata?.full_name ||
-                        supabaseUser.email,
-                    phone:
-                        supabaseUser.user_metadata?.phone ||
-                        ""
-                };
-
-                setUser(user);
-            } else {
-                localStorage.removeItem(USER_KEY);
-                user = null;
+        if (typeof supabaseClient !== "undefined") {
+            const result = await supabaseClient.auth.getUser();
+            if (result.data && result.data.user) {
+                user = result.data.user;
+                const name = user.user_metadata?.full_name || user.email?.split("@")[0] || "User";
+                setUser({ id: user.id, email: user.email, name });
             }
         }
-    } catch (error) {
-        console.error("Unable to read login session:", error);
+    } catch (e) {
+        console.warn("Unable to read Supabase session:", e);
     }
 
-    const account =
-        user
-            ? `
-                <span>
-                    Hi, ${escapeHtml(user.name)}
-                </span>
-
-                <button
-                    class="logout-button"
-                    onclick="logout()"
-                >
-                    Logout
-                </button>
-              `
-            : `
-                <a href="login.html">
-                    Login
-                </a>
-              `;
+    const account = user ? `
+        <span>Hi, ${escapeHtml(user.name || user.user_metadata?.full_name || user.email?.split("@")[0] || "User")}</span>
+        <button class="logout-button" onclick="logout()">Logout</button>
+    ` : `
+        <a href="login.html">Login</a>
+    `;
 
     navbar.innerHTML = `
         <header>
-
-            <a
-                href="index.html"
-                class="logo"
-            >
-                🍔 Foodie Express
-            </a>
-
+            <a href="index.html" class="logo">🍔 Foodie Express</a>
             <nav class="nav">
-
-                <a href="index.html">
-                    Home
-                </a>
-
-                <a href="menu.html">
-                    Menu
-                </a>
-
-                <a
-                    href="cart.html"
-                    class="cart-link"
-                >
-                    Cart
-                    <span id="cartCount">
-                        0
-                    </span>
-                </a>
-
-                <a href="orders.html">
-                    Orders
-                </a>
-
+                <a href="index.html">Home</a>
+                <a href="menu.html">Menu</a>
+                <a href="cart.html" class="cart-link">Cart <span id="cartCount">0</span></a>
+                <a href="orders.html">Orders</a>
                 ${account}
-
             </nav>
-
         </header>
     `;
 
-    updateCartCount();
+    await updateCartCount();
 }
 
-async function apiRequest(
-    endpoint,
-    options = {}
-) {
-    const response =
-        await fetch(
-            API_BASE_URL + endpoint,
-            {
-                headers: {
-                    "Content-Type":
-                        "application/json",
-
-                    ...(options.headers || {})
-                },
-
-                ...options
-            }
-        );
-
-    const data =
-        await response.json();
-
-    if (!response.ok) {
-        throw new Error(
-            data.detail ||
-            "API request failed."
-        );
-    }
-
-    return data;
-}
-
-document.addEventListener(
-    "DOMContentLoaded",
-    renderNavbar
-);
+document.addEventListener("DOMContentLoaded", renderNavbar);

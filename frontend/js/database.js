@@ -26,12 +26,12 @@ async function removeCartItem(id){
  const {error}=await supabaseClient.from("cart_items").delete().eq("id",id);
  if(error)throw error;
 }
-async function createOrderFromCart(user,customerName,phone,address,paymentMethod){
+async function createOrderFromCart(user,customerName,phone,delivery_address,paymentMethod){
  const items=await getCartItems(user.id);
  if(!items.length)throw new Error("Your cart is empty.");
  const total=items.reduce((s,i)=>s+Number(i.food_items.price)*Number(i.quantity),0);
  const {data:order,error:oe}=await supabaseClient.from("orders").insert({
-   user_id:user.id,customer_name:customerName,phone,address,
+   user_id:user.id,customer_name:customerName,phone,delivery_address,
    payment_method:paymentMethod,total_amount:total,status:"Placed"
  }).select().single();
  if(oe)throw oe;
@@ -43,7 +43,7 @@ async function createOrderFromCart(user,customerName,phone,address,paymentMethod
  return {...order,items:orderItems};
 }
 async function getOrdersForUser(userId){
- const {data:orders,error}=await supabaseClient.from("orders").select("id,customer_name,phone,address,payment_method,total_amount,status,created_at").eq("user_id",userId).order("created_at",{ascending:false});
+ const {data:orders,error}=await supabaseClient.from("orders").select("id,customer_name,phone,delivery_address,payment_method,total_amount,status,created_at").eq("user_id",userId).order("created_at",{ascending:false});
  if(error)throw error;
  const ids=(orders||[]).map(o=>o.id); if(!ids.length)return [];
  const {data:items,error:ie}=await supabaseClient.from("order_items").select("order_id,food_name,price,quantity").in("order_id",ids);

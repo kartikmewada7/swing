@@ -18,7 +18,11 @@ const IMAGE_URLS = {
     fries: "https://images.unsplash.com/photo-1573080496219-bb080dd4f877?auto=format&fit=crop&w=900&q=80",
     dessert: "https://images.unsplash.com/photo-1551024506-0bccd828d307?auto=format&fit=crop&w=900&q=80",
     sandwich: "https://images.unsplash.com/photo-1528735602780-2552fd46c7af?auto=format&fit=crop&w=900&q=80",
-    wrap: "https://images.unsplash.com/photo-1626700051175-6818013e1d4f?auto=format&fit=crop&w=900&q=80"
+    wrap: "https://images.unsplash.com/photo-1626700051175-6818013e1d4f?auto=format&fit=crop&w=900&q=80",
+    soda: "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=900&q=80",
+    bread: "https://images.unsplash.com/photo-1619535860434-cf9b902a7a4a?auto=format&fit=crop&w=900&q=80",
+    icecream: "https://images.unsplash.com/photo-1563805042-7684c019e11a?auto=format&fit=crop&w=900&q=80",
+    gulab: "https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=900&q=80"
 };
 
 const foods = [
@@ -424,8 +428,22 @@ async function refreshCartCount() {
     }
 
     try {
-        const items = await getUserCartItems(user.id);
-        element.textContent = items.reduce((sum, item) => sum + item.quantity, 0);
+        // Read cart directly from Supabase. This avoids depending on
+        // getUserCartItems() being available in the page scope.
+        const result = await supabaseClient
+            .from("cart_items")
+            .select("quantity")
+            .eq("user_id", user.id);
+
+        if (result.error) {
+            throw result.error;
+        }
+
+        const items = result.data || [];
+        element.textContent = items.reduce(
+            (sum, item) => sum + Number(item.quantity || 0),
+            0
+        );
     } catch (error) {
         console.error("Cart count error:", error);
     }

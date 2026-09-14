@@ -5,7 +5,7 @@ async function loadCheckout(){
  document.getElementById("customerPhone").value=user.user_metadata?.phone||"";
  const summary=document.getElementById("checkoutSummary");
  try{
-  const items=await getCartItems(user.id);
+  const cartItems=await getCartItems(user.id);
   if(!items.length){summary.innerHTML=`<div class="empty-state"><h2>Cart is empty</h2><a class="btn" href="menu.html">Browse Menu</a></div>`;document.getElementById("placeBtn").disabled=true;return;}
   const total=items.reduce((s,i)=>s+Number(i.food_items.price)*Number(i.quantity),0);
   summary.innerHTML=`<h2>Your Order</h2>${items.map(i=>`<div class="summary-line"><span>${escapeHtml(i.food_items.name)} × ${i.quantity}</span><b>${formatMoney(Number(i.food_items.price)*Number(i.quantity))}</b></div>`).join("")}<div class="summary-line total"><span>Total</span><b>${formatMoney(total)}</b></div>`;

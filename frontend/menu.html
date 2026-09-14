@@ -1,44 +1,6 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Menu</title>
-    <link rel="stylesheet" href="css/style.css">
-</head>
-<body>
-    <div id="navbar"></div>
-
-    <main>
-        <section class="page-header">
-            <span class="eyebrow">OUR MENU</span>
-            <h1>What are you craving?</h1>
-            <p>Search food or choose a category.</p>
-        </section>
-
-        <section class="section">
-            <input
-                id="searchInput"
-                class="search-input"
-                type="search"
-                placeholder="Search food..."
-            >
-
-            <div id="categoryButtons" class="category-buttons"></div>
-
-            <div id="menuGrid" class="food-grid"></div>
-        </section>
-    </main>
-
-    <footer>© 2026 Foodie Express</footer>
-
-    <script src="js/app.js"></script>
-    <script src="js/menu.js"></script>
-
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#ff5a1f"><title>Menu — Foodie Express</title><link rel="stylesheet" href="css/style.css"></head><body><div id="navbar"></div><main><div class="container page-head"><span class="eyebrow">OUR MENU</span><h1>What are you craving?</h1><p class="section-intro">Pick a dish, add it to your cart and enjoy.</p><div class="toolbar"><input id="searchInput" class="search" type="search" placeholder="🔎 Search pizza, burger, paneer…"></div><div id="categoryButtons" class="categories"></div></div><div class="container"><div id="menuGrid" class="food-grid"></div></div></main><footer><div class="container footer-inner"><span>© 2026 Foodie Express</span><span>Fresh food • Fast delivery • Made with ❤️</span></div></footer><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-config.js"></script>
 <script src="js/auth.js"></script>
 <script src="js/database.js"></script>
-
-</body>
-</html>
+<script src="js/app.js"></script>
+<script src="js/menu.js"></script></body></html>

@@ -1,216 +1,23 @@
-async function placeOrder(event) {
-    event.preventDefault();
 
-    const user =
-        getUser();
-
-    if (!user) {
-        window.location.href =
-            "login.html";
-
-        return;
-    }
-
-    const cart =
-        getCart();
-
-    if (cart.length === 0) {
-        alert(
-            "Your cart is empty."
-        );
-
-        return;
-    }
-
-    const message =
-        document.getElementById(
-            "checkoutMessage"
-        );
-
-    const orderData = {
-        user_id:
-            user.user_id,
-
-        customer_name:
-            document
-                .getElementById(
-                    "customerName"
-                )
-                .value
-                .trim(),
-
-        customer_phone:
-            document
-                .getElementById(
-                    "customerPhone"
-                )
-                .value
-                .trim(),
-
-        delivery_address:
-            document
-                .getElementById(
-                    "customerAddress"
-                )
-                .value
-                .trim(),
-
-        payment_method:
-            document.querySelector(
-                "input[name='payment']:checked"
-            ).value,
-
-        items:
-            cart
-    };
-
-    try {
-        message.textContent =
-            "Placing order...";
-
-        const result =
-            await apiRequest(
-                "/orders",
-                {
-                    method: "POST",
-                    body:
-                        JSON.stringify(
-                            orderData
-                        )
-                }
-            );
-
-        localStorage.removeItem(
-            CART_KEY
-        );
-
-        localStorage.setItem(
-            "lastOrder",
-            JSON.stringify(result)
-        );
-
-        window.location.href =
-            "confirmation.html";
-
-    } catch (error) {
-        message.textContent =
-            error.message;
-    }
+async function loadCheckout(){
+ const user=await currentUser(); if(!user){location.href="login.html?next=checkout.html";return;}
+ document.getElementById("customerName").value=user.user_metadata?.full_name||user.email?.split("@")[0]||"";
+ document.getElementById("customerPhone").value=user.user_metadata?.phone||"";
+ const summary=document.getElementById("checkoutSummary");
+ try{
+  const items=await getCartItems(user.id);
+  if(!items.length){summary.innerHTML=`<div class="empty-state"><h2>Cart is empty</h2><a class="btn" href="menu.html">Browse Menu</a></div>`;document.getElementById("placeBtn").disabled=true;return;}
+  const total=items.reduce((s,i)=>s+Number(i.food_items.price)*Number(i.quantity),0);
+  summary.innerHTML=`<h2>Your Order</h2>${items.map(i=>`<div class="summary-line"><span>${escapeHtml(i.food_items.name)} × ${i.quantity}</span><b>${formatMoney(Number(i.food_items.price)*Number(i.quantity))}</b></div>`).join("")}<div class="summary-line total"><span>Total</span><b>${formatMoney(total)}</b></div>`;
+ }catch(e){summary.innerHTML=`<div class="notice">${escapeHtml(e.message)}</div>`;}
 }
-
-async function renderCheckout() {
-    const user =
-        getUser();
-
-    if (!user) {
-        window.location.href =
-            "login.html";
-
-        return;
-    }
-
-    const nameInput =
-        document.getElementById(
-            "customerName"
-        );
-
-    const phoneInput =
-        document.getElementById(
-            "customerPhone"
-        );
-
-    nameInput.value =
-        user.name;
-
-    phoneInput.value =
-        user.phone || "";
-
-    const items =
-        getCart();
-
-    const summary =
-        document.getElementById(
-            "checkoutSummary"
-        );
-
-    if (items.length === 0) {
-        summary.innerHTML = `
-            <h2>
-                Your cart is empty.
-            </h2>
-        `;
-
-        return;
-    }
-
-    const foodMap =
-        new Map(
-            foods.map(
-                food => [
-                    food.id,
-                    food
-                ]
-            )
-        );
-
-    let total = 0;
-
-    summary.innerHTML =
-        items
-            .map(item => {
-
-                const food =
-                    foodMap.get(
-                        item.foodId
-                    );
-
-                const amount =
-                    food.price *
-                    item.quantity;
-
-                total += amount;
-
-                return `
-                    <div class="summary-line">
-                        <span>
-                            ${escapeHtml(
-                                food.name
-                            )}
-                            ×
-                            ${item.quantity}
-                        </span>
-
-                        <strong>
-                            ${formatMoney(
-                                amount
-                            )}
-                        </strong>
-                    </div>
-                `;
-            })
-            .join("") +
-        `
-            <div class="summary-line total-line">
-                <span>Total</span>
-                <strong>
-                    ${formatMoney(total)}
-                </strong>
-            </div>
-        `;
+async function placeOrder(e){
+ e.preventDefault();const msg=document.getElementById("checkoutMessage"),btn=document.getElementById("placeBtn");
+ const user=await currentUser();if(!user){location.href="login.html";return;}
+ const name=document.getElementById("customerName").value.trim(),phone=document.getElementById("customerPhone").value.trim(),address=document.getElementById("customerAddress").value.trim(),payment=document.querySelector("input[name=payment]:checked").value;
+ if(!/^\d{10}$/.test(phone)){msg.textContent="Enter a valid 10-digit mobile number.";return;}
+ btn.disabled=true;btn.textContent="Placing order…";
+ try{const order=await createOrderFromCart(user,name,phone,address,payment);sessionStorage.setItem("lastOrder",JSON.stringify(order));location.href=`confirmation.html?id=${order.id}`;}
+ catch(err){msg.textContent=err.message;btn.disabled=false;btn.textContent="Place Order";}
 }
-
-document.addEventListener(
-    "DOMContentLoaded",
-    () => {
-        renderCheckout();
-
-        document
-            .getElementById(
-                "checkoutForm"
-            )
-            .addEventListener(
-                "submit",
-                placeOrder
-            );
-    }
-);
+document.addEventListener("DOMContentLoaded",()=>{document.getElementById("checkoutForm").addEventListener("submit",placeOrder);loadCheckout();});

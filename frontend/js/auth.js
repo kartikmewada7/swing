@@ -1,102 +1,12 @@
-async function signUpWithEmail(
-    fullName,
-    email,
-    password,
-    phone
-) {
-    const result = await supabaseClient.auth.signUp({
-        email: email,
-        password: password,
-        options: {
-            emailRedirectTo:
-                window.location.origin +
-                "/frontend/index.html",
 
-            data: {
-                full_name: fullName,
-                phone: phone
-            }
-        }
-    });
-
-    if (result.error) {
-        throw result.error;
-    }
-
-    return result.data;
+async function signUpWithEmail(fullName,email,password,phone){
+ const {data,error}=await supabaseClient.auth.signUp({email,password,options:{emailRedirectTo:window.location.origin+"/index.html",data:{full_name:fullName,phone}}});
+ if(error)throw error;return data;
 }
-
-async function signInWithEmail(
-    email,
-    password
-) {
-    const result =
-        await supabaseClient.auth.signInWithPassword({
-            email: email,
-            password: password
-        });
-
-    if (result.error) {
-        throw result.error;
-    }
-
-    return result.data;
+async function signInWithEmail(email,password){
+ const {data,error}=await supabaseClient.auth.signInWithPassword({email,password});if(error)throw error;return data;
 }
-
-async function sendEmailOtp(
-    email
-) {
-    const result =
-        await supabaseClient.auth.signInWithOtp({
-            email: email,
-            options: {
-                shouldCreateUser: false
-            }
-        });
-
-    if (result.error) {
-        throw result.error;
-    }
-
-    return result.data;
-}
-
-async function verifyEmailOtp(
-    email,
-    token
-) {
-    const result =
-        await supabaseClient.auth.verifyOtp({
-            email: email,
-            token: token,
-            type: "email"
-        });
-
-    if (result.error) {
-        throw result.error;
-    }
-
-    return result.data;
-}
-
-async function signOutUser() {
-    const result =
-        await supabaseClient.auth.signOut();
-
-    if (result.error) {
-        throw result.error;
-    }
-
-    window.location.href = "login.html";
-}
-
-async function getCurrentUser() {
-    const result =
-        await supabaseClient.auth.getUser();
-
-    if (result.error) {
-        return null;
-    }
-
-    return result.data.user;
-}
+async function sendEmailOtp(email){const {data,error}=await supabaseClient.auth.signInWithOtp({email,options:{shouldCreateUser:false}});if(error)throw error;return data;}
+async function verifyEmailOtp(email,token){const {data,error}=await supabaseClient.auth.verifyOtp({email,token,type:"email"});if(error)throw error;return data;}
+async function signOutUser(){const {error}=await supabaseClient.auth.signOut();if(error)throw error;localStorage.removeItem("foodie_user");window.location.href="index.html";}
+async function getCurrentUser(){const {data,error}=await supabaseClient.auth.getUser();return error?null:data.user;}

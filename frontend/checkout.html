@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checkout</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="navbar"></div>
+
+    <main class="section">
+        <span class="eyebrow">ALMOST THERE</span>
+        <h1>Checkout</h1>
+
+        <div class="two-column">
+            <form id="checkoutForm" class="panel">
+
+                <h2>Delivery Details</h2>
+
+                <label>
+                    Customer Name
+                    <input id="customerName" required>
+                </label>
+
+                <label>
+                    Mobile Number
+                    <input
+                        id="customerPhone"
+                        pattern="[0-9]{10}"
+                        required
+                    >
+                </label>
+
+                <label>
+                    Address
+                    <textarea
+                        id="customerAddress"
+                        rows="5"
+                        required
+                    ></textarea>
+                </label>
+
+                <h3>Payment Method</h3>
+
+                <label class="payment-option">
+                    <input
+                        type="radio"
+                        name="payment"
+                        value="Cash on Delivery"
+                        checked
+                    >
+                    Cash on Delivery
+                </label>
+
+                <label class="payment-option">
+                    <input
+                        type="radio"
+                        name="payment"
+                        value="Online"
+                    >
+                    Online Payment (Demo)
+                </label>
+
+                <button
+                    class="btn full-width"
+                    type="submit"
+                >
+                    Place Order
+                </button>
+
+                <p id="checkoutMessage" class="message"></p>
+            </form>
+
+            <aside
+                id="checkoutSummary"
+                class="panel"
+            ></aside>
+        </div>
+    </main>
+
+    <footer>© 2026 Foodie Express</footer>
+
+    <script src="js/app.js"></script>
+    <script src="js/checkout.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/database.js"></script>
+
+</body>
+</html>

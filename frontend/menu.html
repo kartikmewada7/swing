@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Menu</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="navbar"></div>
+
+    <main>
+        <section class="page-header">
+            <span class="eyebrow">OUR MENU</span>
+            <h1>What are you craving?</h1>
+            <p>Search food or choose a category.</p>
+        </section>
+
+        <section class="section">
+            <input
+                id="searchInput"
+                class="search-input"
+                type="search"
+                placeholder="Search food..."
+            >
+
+            <div id="categoryButtons" class="category-buttons"></div>
+
+            <div id="menuGrid" class="food-grid"></div>
+        </section>
+    </main>
+
+    <footer>© 2026 Foodie Express</footer>
+
+    <script src="js/app.js"></script>
+    <script src="js/menu.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/database.js"></script>
+
+</body>
+</html>
